@@ -9,7 +9,7 @@ Unlike other lexer generator, Sana supports extended regular expressions, which 
 
 At compile time, Sana:
 
-- Constructs an deterministic state automata from the token definitions
+- Constructs a deterministic state automata from the token definitions
 - Generates IR from the automata
 - Compiles IR into Rust code
 
