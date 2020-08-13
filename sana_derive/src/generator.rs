@@ -7,6 +7,22 @@ use quote::{format_ident, quote};
 use sana_core::ir::{Op, Ir};
 use crate::{SanaSpec, Backend};
 
+pub(crate) fn pprint_ir(spec: SanaSpec) -> ! {
+    let dfa = match spec.rules.construct_dfa() {
+        Ok(dfa) => dfa,
+        Err(sana_core::Error::AmbiguityError(ix, i)) =>
+            abort!(spec.variants[i].span(), "Ambiguous rule";
+            note = spec.variants[ix].span() => "Resolve conflicts with {}", spec.variants[ix]),
+    };
+
+    let ir = Ir::from_automata(dfa);
+
+    abort!(
+        spec.pprint_ir.unwrap(), "The user wants IR";
+        help = "\n{}", ir.pretty()
+    );
+}
+
 pub(crate) fn generate(spec: SanaSpec) -> TokenStream {
     let dfa = match spec.rules.construct_dfa() {
         Ok(dfa) => dfa,

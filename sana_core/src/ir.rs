@@ -3,10 +3,12 @@ use std::{ops::Not, collections::VecDeque};
 use crate::automata::{Automata, NodeKind, State};
 
 /// An intermediate representation
+#[derive(Debug, Clone)]
 pub struct Ir<T> {
     pub blocks: Vec<Block<T>>
 }
 
+#[derive(Debug, Clone)]
 pub enum Block<T> {
     Block(Vec<Op<T>>),
     Func(Vec<Op<T>>),
@@ -59,43 +61,57 @@ pub enum Op<T> {
     Halt,
 }
 
-/// Pretty print the IR
-pub fn pprint_ir<T: std::fmt::Debug>(ir: &Ir<T>) {
-    for (i, block) in ir.blocks.iter().enumerate() {
-        match block {
-            Block::Block(ops) => {
-                println!("l{}:", i);
+#[derive(Debug, Clone)]
+pub struct PrettyIr<'a, T>(&'a Ir<T>);
 
-                for op in ops { pprint_op(op) }
-            },
-            Block::Func(ops) => {
-                println!("l{}(λ):", i);
+impl<'a, T: std::fmt::Display> std::fmt::Display for PrettyIr<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (i, block) in self.0.blocks.iter().enumerate() {
+            match block {
+                Block::Block(ops) => {
+                    writeln!(f, "l{}:", i)?;
 
-                for op in ops { pprint_op(op) }
-            },
-        };
+                    for op in ops { fmt_op(op, f)? }
+                },
+                Block::Func(ops) => {
+                    writeln!(f, "l{}(λ):", i)?;
+
+                    for op in ops { fmt_op(op, f)? }
+                },
+            };
+        }
+
+        Ok(())
     }
 }
 
-fn pprint_op<T: std::fmt::Debug>(op: &Op<T>) {
+fn fmt_op<T: std::fmt::Display>(op: &Op<T>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     use Op::*;
 
-    print!("    ");
+    write!(f, "    ")?;
     match op {
         Shift =>
-            println!("shift"),
+            writeln!(f, "shift")?,
         JumpMatches { from, to, on_success } =>
-            println!("jm {:?} {:?} l{}", from, to, on_success),
+            writeln!(f, "jm {:?} {:?} l{}", from, to, on_success)?,
         JumpNotMatches { from, to, on_failure } =>
-            println!("jnm {:?} {:?} l{}", from, to, on_failure),
+            writeln!(f, "jnm {:?} {:?} l{}", from, to, on_failure)?,
         LoopMatches { from, to } =>
-            println!("lm {:?} {:?}", from, to),
+            writeln!(f, "lm {:?} {:?}", from, to)?,
         Jump(to) =>
-            println!("jump l{}", to),
+            writeln!(f, "jump l{}", to)?,
         Set(act) =>
-            println!("set {:?}", act),
+            writeln!(f, "set {}", act)?,
         Halt =>
-            println!("halt"),
+            writeln!(f, "halt")?,
+    };
+
+    Ok(())
+}
+
+impl<T: std::fmt::Display> Ir<T> {
+    pub fn pretty(&self) -> PrettyIr<'_, T> {
+        PrettyIr(self)
     }
 }
 

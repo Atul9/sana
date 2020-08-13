@@ -6,6 +6,7 @@ use std::convert::TryFrom;
 
 use sana_core::regex::Regex;
 use crate::Spanned;
+use proc_macro2::Span;
 
 struct RegexExpr(Regex);
 
@@ -18,6 +19,16 @@ pub(crate) fn parse_backend_attr(attr: Attribute) -> Option<crate::Backend> {
         .ok()?;
 
     Some(ba.0)
+}
+
+pub(crate) fn parse_pprint_ir_attr(attr: Attribute) -> Option<Span> {
+    let name = attr.path.get_ident()?.to_string();
+    if &*name == "pprint_ir" {
+        Some(attr.bracket_token.span)
+    }
+    else {
+        None
+    }
 }
 
 struct BackendAttr(crate::Backend);

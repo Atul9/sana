@@ -28,7 +28,6 @@ fn compile(rules: &[(&str, &'static str, usize)]) -> Ir<&'static str> {
 #[test]
 fn doc_example() {
     let ir = compile(doc_tokens());
-    sana_core::ir::pprint_ir(&ir);
     let ir = ir.flatten();
 
     let input = "let answer = 42;";

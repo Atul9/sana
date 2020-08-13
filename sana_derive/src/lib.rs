@@ -39,6 +39,7 @@ struct SanaSpec {
     variants: Vec<Ident>,
     terminal: Ident,
     backend: Backend,
+    pprint_ir: Option<Span>,
 }
 
 fn parse_variant(var: syn::Variant) -> Option<SanaVariant> {
@@ -136,10 +137,12 @@ fn build_spec(source: ItemEnum) -> SanaSpec {
     }
 
     let mut backend = Backend::Rust;
+    let mut pprint_ir = None;
     for attr in source.attrs {
-        if let Some(b) = parser::parse_backend_attr(attr) {
+        if let Some(b) = parser::parse_backend_attr(attr.clone()) {
             backend = b
         }
+        pprint_ir = parser::parse_pprint_ir_attr(attr);
     }
 
     let enum_ident = source.ident;
@@ -181,7 +184,8 @@ fn build_spec(source: ItemEnum) -> SanaSpec {
         rules: RuleSet { rules },
         variants,
         terminal: terminal.unwrap(),
-        backend
+        backend,
+        pprint_ir
     }
 }
 
@@ -189,8 +193,15 @@ fn build_spec(source: ItemEnum) -> SanaSpec {
 ///
 /// # Attributes
 ///
+/// Enum attributes:
+///
 /// - `#[backend(be)]`: set the lexer backend. Valid values are `rust` and `vm`.
-/// This attribute must be placed before the enum definiton.
+/// - `#[pprint_ir]`: print the IR. This is useful for debugging.
+///
+/// Enum attributes must be placed before the enum definiton.
+///
+/// Variant attribures:
+///
 /// - `#[error]`: mark the given variant as the error variant. There must be
 /// exactly one error variant for a given enum
 /// - `#[regex(re)]`: specify the regular expression corresponding to
@@ -219,11 +230,11 @@ fn build_spec(source: ItemEnum) -> SanaSpec {
 /// the [regex](https://docs.rs/regex) crate syntax. `|` denotes the union
 /// of regular expressions, `&` denotes the intersection, and `.` denotes
 /// the concatenation. `!` denotes the complement of a regular expression.
-/// 
+///
 /// The priorities of the operations match the order in the syntax definiton.
 /// So `a | b . c` is the same as `a | (b . c)`.
 #[proc_macro_error]
-#[proc_macro_derive(Sana, attributes(backend, error, regex, token))]
+#[proc_macro_derive(Sana, attributes(backend, pprint_ir, error, regex, token))]
 pub fn sana(input: TokenStream) -> TokenStream {
     let item: ItemEnum = syn::parse(input)
         .expect_or_abort("Sana can be only be derived for enums");
@@ -231,6 +242,10 @@ pub fn sana(input: TokenStream) -> TokenStream {
     let spec = build_spec(item);
 
     abort_if_dirty();
+
+    if spec.pprint_ir.is_some() {
+        generator::pprint_ir(spec)
+    }
 
     generator::generate(spec).into()
 }
