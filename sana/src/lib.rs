@@ -107,9 +107,9 @@
 //! state is reached, the lexer returns the last action state or an error, if the
 //! lexer visited no action states.
 
-pub use sana_derive::Sana;
 #[doc(hidden)]
 pub use sana_core::ir;
+pub use sana_derive::Sana;
 
 use sana_core::ir::{Op, Vm};
 
@@ -196,15 +196,23 @@ impl<'input, Token: Sana> Iterator for Lexer<'input, Token> {
     fn next(&mut self) -> Option<Self::Item> {
         use sana_core::ir::VmResult::*;
 
-        let res =
-            if Token::USES_VM { self.vm.run() }
-            else { Token::lex(&mut self.vm.cursor) };
+        let res = if Token::USES_VM {
+            self.vm.run()
+        } else {
+            Token::lex(&mut self.vm.cursor)
+        };
 
         let token = match res {
-            Action { start, end, action } =>
-                Spanned { start, end, value: action },
-            Error { start, end } =>
-                Spanned { start, end, value: Token::ERROR },
+            Action { start, end, action } => Spanned {
+                start,
+                end,
+                value: action,
+            },
+            Error { start, end } => Spanned {
+                start,
+                end,
+                value: Token::ERROR,
+            },
             Eoi => return None,
         };
 

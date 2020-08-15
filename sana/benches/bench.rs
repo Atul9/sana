@@ -1,5 +1,5 @@
-use sana::Sana;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use sana::Sana;
 
 #[derive(Debug, Clone, Copy, PartialEq, Sana)]
 enum Token {
@@ -116,8 +116,6 @@ static IDENTIFIERS: &str = "It was the year when they finally immanentized the E
 
 static STRINGS: &str = r#""tree" "to" "a" "graph" "that can" "more adequately represent" "loops and arbitrary state jumps" "with\"\"\"out" "the\n\n\n\n\n" "expl\"\"\"osive" "nature\"""of trying to build up all possible permutations in a tree." "tree" "to" "a" "graph" "that can" "more adequately represent" "loops and arbitrary state jumps" "with\"\"\"out" "the\n\n\n\n\n" "expl\"\"\"osive" "nature\"""of trying to build up all possible permutations in a tree." "tree" "to" "a" "graph" "that can" "more adequately represent" "loops and arbitrary state jumps" "with\"\"\"out" "the\n\n\n\n\n" "expl\"\"\"osive" "nature\"""of trying to build up all possible permutations in a tree." "tree" "to" "a" "graph" "that can" "more adequately represent" "loops and arbitrary state jumps" "with\"\"\"out" "the\n\n\n\n\n" "expl\"\"\"osive" "nature\"""of trying to build up all possible permutations in a tree.""#;
 
-
-
 fn identifiers(c: &mut Criterion) {
     let mut group = c.benchmark_group("identifiers");
     let size = IDENTIFIERS.len();
@@ -154,5 +152,10 @@ fn strings(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, identifiers, keywords_operators_and_punctators, strings);
+criterion_group!(
+    benches,
+    identifiers,
+    keywords_operators_and_punctators,
+    strings
+);
 criterion_main!(benches);

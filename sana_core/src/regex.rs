@@ -1,12 +1,12 @@
 use regex_syntax::hir;
 
 use std::{
-    hash::{Hash, Hasher},
     convert::TryFrom,
+    hash::{Hash, Hasher},
 };
 
-use std::ops::Not;
 use crate::automata::CharRange;
+use std::ops::Not;
 
 // Hashing is used for regular expression normalization
 fn hash<T: Hash>(t: &T) -> u64 {
@@ -44,7 +44,7 @@ impl Class {
     fn contains(&self, ch: char) -> bool {
         for r in self.0.ranges() {
             if (r.start()..=r.end()).contains(&ch) {
-                return true
+                return true;
             }
         }
 
@@ -55,8 +55,10 @@ impl Class {
         self.0.ranges()[0].start()
     }
 
-    pub fn ranges<'a>(&'a self) -> impl Iterator<Item=CharRange> + 'a {
-        self.0.ranges().iter()
+    pub fn ranges<'a>(&'a self) -> impl Iterator<Item = CharRange> + 'a {
+        self.0
+            .ranges()
+            .iter()
             .map(|r| CharRange::new(r.start(), r.end()))
     }
 }
@@ -69,7 +71,6 @@ impl std::hash::Hash for Class {
         }
     }
 }
-
 
 /// A trait for regular expressions derivatives
 ///
@@ -115,9 +116,7 @@ pub fn pprint_regex(regex: &Regex) {
 }
 
 fn print_regex_indent(regex: &Regex, indent: usize) {
-    let ws: String = std::iter::repeat(' ')
-        .take(indent)
-        .collect();
+    let ws: String = std::iter::repeat(' ').take(indent).collect();
 
     match regex {
         Regex::Nothing => println!("{}Nothing", ws),
@@ -130,38 +129,38 @@ fn print_regex_indent(regex: &Regex, indent: usize) {
             for r in list {
                 print_regex_indent(r, indent + 2)
             }
-        },
+        }
         Regex::Loop(r) => {
             println!("{}Loop", ws);
 
             print_regex_indent(r, indent + 2)
-        },
+        }
         Regex::Or(list) => {
             println!("{}Or", ws);
 
             for r in list {
                 print_regex_indent(r, indent + 2)
             }
-        },
+        }
         Regex::And(list) => {
             println!("{}And", ws);
 
             for r in list {
                 print_regex_indent(r, indent + 2)
             }
-        },
+        }
         Regex::Not(r) => {
             println!("{}Not", ws);
 
             print_regex_indent(r, indent + 2)
-        },
+        }
         Regex::Anything => println!("{}Anything", ws),
     }
 }
 
 fn flatten_concat(list: &mut Vec<Regex>) {
     if list.iter().all(|e| matches!(*e, Regex::Concat(_)).not()) {
-        return
+        return;
     }
 
     let mut new = vec![];
@@ -169,8 +168,7 @@ fn flatten_concat(list: &mut Vec<Regex>) {
     for e in list.drain(..) {
         if let Regex::Concat(list) = e {
             new.extend(list)
-        }
-        else {
+        } else {
             new.push(e)
         }
     }
@@ -180,7 +178,7 @@ fn flatten_concat(list: &mut Vec<Regex>) {
 
 fn flatten_or(list: &mut Vec<Regex>) {
     if list.iter().all(|e| matches!(*e, Regex::Or(_)).not()) {
-        return
+        return;
     }
 
     let mut new = vec![];
@@ -188,8 +186,7 @@ fn flatten_or(list: &mut Vec<Regex>) {
     for e in list.drain(..) {
         if let Regex::Or(list) = e {
             new.extend(list)
-        }
-        else {
+        } else {
             new.push(e)
         }
     }
@@ -199,7 +196,7 @@ fn flatten_or(list: &mut Vec<Regex>) {
 
 fn flatten_and(list: &mut Vec<Regex>) {
     if list.iter().all(|e| matches!(*e, Regex::And(_)).not()) {
-        return
+        return;
     }
 
     let mut new = vec![];
@@ -207,8 +204,7 @@ fn flatten_and(list: &mut Vec<Regex>) {
     for e in list.drain(..) {
         if let Regex::And(list) = e {
             new.extend(list)
-        }
-        else {
+        } else {
             new.push(e)
         }
     }
@@ -219,7 +215,9 @@ fn flatten_and(list: &mut Vec<Regex>) {
 impl Regex {
     /// Create a regular expression that matches the given string
     pub fn literal_str(string: &str) -> Regex {
-        if string.is_empty() { return Regex::Empty }
+        if string.is_empty() {
+            return Regex::Empty;
+        }
 
         Regex::Concat(string.chars().map(Regex::Literal).collect())
     }
@@ -246,31 +244,28 @@ impl Regex {
                 flatten_concat(list);
 
                 if list.iter().any(|e| *e == Regex::Nothing) {
-                    return *self = Regex::Nothing
+                    return *self = Regex::Nothing;
                 }
 
                 list.retain(|e| *e != Regex::Empty);
 
                 if list.len() == 1 {
-                    return *self = list[0].clone()
+                    return *self = list[0].clone();
                 }
                 if list.is_empty() {
-                    return *self = Regex::Empty
+                    return *self = Regex::Empty;
                 }
-            },
+            }
             Regex::Loop(e) => {
                 e.normalize();
 
                 match e.as_mut() {
-                    Regex::Loop(inner) =>
-                        *e = inner.clone(),
-                    Regex::Nothing =>
-                        *self = Regex::Empty,
-                    Regex::Empty =>
-                        *self = Regex::Empty,
+                    Regex::Loop(inner) => *e = inner.clone(),
+                    Regex::Nothing => *self = Regex::Empty,
+                    Regex::Empty => *self = Regex::Empty,
                     _ => (),
                 }
-            },
+            }
             Regex::Or(list) => {
                 for e in list.as_mut_slice() {
                     e.normalize()
@@ -279,21 +274,21 @@ impl Regex {
                 flatten_or(list);
 
                 if list.iter().any(|e| *e == Regex::Anything) {
-                    return *self = Regex::Anything
+                    return *self = Regex::Anything;
                 }
 
                 list.retain(|e| *e != Regex::Nothing);
 
                 if list.len() == 1 {
-                    return *self = list[0].clone()
+                    return *self = list[0].clone();
                 }
                 if list.is_empty() {
-                    return *self = Regex::Nothing
+                    return *self = Regex::Nothing;
                 }
 
                 list.sort_by(|l, r| hash(l).cmp(&hash(r)));
                 list.dedup()
-            },
+            }
             Regex::And(list) => {
                 for e in list.as_mut_slice() {
                     e.normalize()
@@ -302,35 +297,32 @@ impl Regex {
                 flatten_and(list);
 
                 if list.iter().any(|e| *e == Regex::Nothing) {
-                    return *self = Regex::Nothing
+                    return *self = Regex::Nothing;
                 }
 
                 list.retain(|e| *e != Regex::Anything);
 
                 if list.len() == 1 {
-                    return *self = list[0].clone()
+                    return *self = list[0].clone();
                 }
                 if list.is_empty() {
-                    return *self = Regex::Anything
+                    return *self = Regex::Anything;
                 }
 
                 list.sort_by(|l, r| hash(l).cmp(&hash(r)));
                 list.dedup()
-            },
+            }
             Regex::Not(e) => {
                 e.normalize();
 
                 match e.as_mut() {
-                    Regex::Not(inner) =>
-                        *self = *inner.clone(),
-                    Regex::Nothing =>
-                        *self = Regex::Anything,
-                    Regex::Anything =>
-                        *self = Regex::Nothing,
-                    _ => ()
+                    Regex::Not(inner) => *self = *inner.clone(),
+                    Regex::Nothing => *self = Regex::Anything,
+                    Regex::Anything => *self = Regex::Nothing,
+                    _ => (),
                 }
-            },
-            _ => ()
+            }
+            _ => (),
         }
     }
 
@@ -343,13 +335,10 @@ impl Regex {
             Regex::Empty => true,
             Regex::Literal(_) => false,
             Regex::Class(c) => c.is_empty(),
-            Regex::Concat(list) =>
-                list.iter().all(|e| e.is_nullable()),
+            Regex::Concat(list) => list.iter().all(|e| e.is_nullable()),
             Regex::Loop(_) => true,
-            Regex::Or(list) =>
-                list.iter().any(|e| e.is_nullable()),
-            Regex::And(list) =>
-                list.iter().all(|e| e.is_nullable()),
+            Regex::Or(list) => list.iter().any(|e| e.is_nullable()),
+            Regex::And(list) => list.iter().all(|e| e.is_nullable()),
             Regex::Not(e) => e.is_nullable().not(),
             Regex::Anything => true,
         }
@@ -359,50 +348,42 @@ impl Regex {
 impl Derivative for Regex {
     fn derivative(&self, ch: char) -> Regex {
         let mut res = match self {
-            Regex::Nothing =>
-                Regex::Nothing,
-            Regex::Empty =>
-                Regex::Nothing,
-            Regex::Literal(c) =>
-                if *c == ch { Regex::Empty }
-                else { Regex::Nothing },
-            Regex::Class(c) =>
-                if c.contains(ch) { Regex::Empty }
-                else { Regex::Nothing },
+            Regex::Nothing => Regex::Nothing,
+            Regex::Empty => Regex::Nothing,
+            Regex::Literal(c) => {
+                if *c == ch {
+                    Regex::Empty
+                } else {
+                    Regex::Nothing
+                }
+            }
+            Regex::Class(c) => {
+                if c.contains(ch) {
+                    Regex::Empty
+                } else {
+                    Regex::Nothing
+                }
+            }
             Regex::Concat(list) => {
                 let mut sum = vec![];
 
                 for i in 0..list.len() {
-                    let mut conc = vec![
-                        list[i].derivative(ch)
-                    ];
+                    let mut conc = vec![list[i].derivative(ch)];
                     conc.extend(list[i..].iter().skip(1).cloned());
 
                     sum.push(Regex::Concat(conc));
 
                     if list[i].is_nullable().not() || i == list.len() {
-                        break
+                        break;
                     }
                 }
 
                 Regex::Or(sum)
-            },
-            Regex::Loop(e) => Regex::Concat(vec![
-                e.derivative(ch),
-                Regex::Loop(e.clone())
-            ]),
-            Regex::Or(list) => Regex::Or(
-                list.iter()
-                    .map(|e| e.derivative(ch))
-                    .collect()
-            ),
-            Regex::And(list) => Regex::And(
-                list.iter()
-                    .map(|e| e.derivative(ch))
-                    .collect()
-            ),
-            Regex::Not(e) =>
-                Regex::Not(Box::new(e.derivative(ch))),
+            }
+            Regex::Loop(e) => Regex::Concat(vec![e.derivative(ch), Regex::Loop(e.clone())]),
+            Regex::Or(list) => Regex::Or(list.iter().map(|e| e.derivative(ch)).collect()),
+            Regex::And(list) => Regex::And(list.iter().map(|e| e.derivative(ch)).collect()),
+            Regex::Not(e) => Regex::Not(Box::new(e.derivative(ch))),
             Regex::Anything => Regex::Anything,
         };
 
@@ -423,9 +404,7 @@ impl TryFrom<hir::Hir> for Regex {
         use hir::*;
 
         match hir.into_kind() {
-            HirKind::Empty => {
-                Ok(Regex::Empty)
-            },
+            HirKind::Empty => Ok(Regex::Empty),
             HirKind::Concat(concat) => {
                 let mut out = Vec::with_capacity(concat.len());
 
@@ -435,7 +414,7 @@ impl TryFrom<hir::Hir> for Regex {
                             for child in nested {
                                 extend(child, out);
                             }
-                        },
+                        }
                         mir => out.push(mir),
                     }
                 }
@@ -445,7 +424,7 @@ impl TryFrom<hir::Hir> for Regex {
                 }
 
                 Ok(Regex::Concat(out))
-            },
+            }
             HirKind::Alternation(alternation) => {
                 let alternation = alternation
                     .into_iter()
@@ -453,16 +432,11 @@ impl TryFrom<hir::Hir> for Regex {
                     .collect::<Result<_, _>>()?;
 
                 Ok(Regex::Or(alternation))
-            },
-            HirKind::Literal(hir::Literal::Unicode(literal)) => {
-                Ok(Regex::Literal(literal))
-            },
-            HirKind::Literal(_) =>
-                Err("Only Unicode literals are supported"),
-            HirKind::Class(hir::Class::Unicode(class)) =>
-                Ok(Regex::Class(Class(class))),
-            HirKind::Class(_) =>
-                Err("Only Unicode classes are supported"),
+            }
+            HirKind::Literal(hir::Literal::Unicode(literal)) => Ok(Regex::Literal(literal)),
+            HirKind::Literal(_) => Err("Only Unicode literals are supported"),
+            HirKind::Class(hir::Class::Unicode(class)) => Ok(Regex::Class(Class(class))),
+            HirKind::Class(_) => Err("Only Unicode classes are supported"),
             HirKind::Repetition(repetition) => {
                 if repetition.greedy.not() {
                     return Err("#[regex]: non-greedy parsing is currently unsupported.");
@@ -472,62 +446,51 @@ impl TryFrom<hir::Hir> for Regex {
                 let mir = Regex::try_from(*repetition.hir)?;
 
                 match kind {
-                    RepetitionKind::ZeroOrOne => {
-                        Ok(Regex::Or(vec![mir, Regex::Empty]))
-                    },
-                    RepetitionKind::ZeroOrMore => {
-                        Ok(Regex::Loop(Box::new(mir)))
-                    },
+                    RepetitionKind::ZeroOrOne => Ok(Regex::Or(vec![mir, Regex::Empty])),
+                    RepetitionKind::ZeroOrMore => Ok(Regex::Loop(Box::new(mir))),
                     RepetitionKind::OneOrMore => {
-                        Ok(Regex::Concat(vec![
-                            mir.clone(),
-                            Regex::Loop(Box::new(mir)),
-                        ]))
-                    },
+                        Ok(Regex::Concat(vec![mir.clone(), Regex::Loop(Box::new(mir))]))
+                    }
                     RepetitionKind::Range(..) => {
                         Err("#[regex]: {n,m} repetition range is currently unsupported.")
-                    },
+                    }
                 }
-            },
-            HirKind::Group(group) => {
-                Regex::try_from(*group.hir)
-            },
-            HirKind::WordBoundary(_) => {
-                Err("#[regex]: word boundaries are currently unsupported.")
-            },
-            HirKind::Anchor(_) => {
-                Err("#[regex]: anchors in #[regex] are currently unsupported.")
-            },
+            }
+            HirKind::Group(group) => Regex::try_from(*group.hir),
+            HirKind::WordBoundary(_) => Err("#[regex]: word boundaries are currently unsupported."),
+            HirKind::Anchor(_) => Err("#[regex]: anchors in #[regex] are currently unsupported."),
         }
     }
 }
 
 fn collect_classes(classes: &mut Vec<Class>, regex: &Regex) {
     match regex {
-        Regex::Nothing
-        | Regex::Empty
-        | Regex::Anything => (),
-        Regex::Literal(literal) =>
-            classes.push(Class::from_literal(*literal)),
-        Regex::Class(class) =>
-            classes.push(class.clone()),
+        Regex::Nothing | Regex::Empty | Regex::Anything => (),
+        Regex::Literal(literal) => classes.push(Class::from_literal(*literal)),
+        Regex::Class(class) => classes.push(class.clone()),
         Regex::Concat(list) => {
             collect_classes(classes, &list[0]);
 
             for i in 1..list.len() {
-                if list[i - 1].is_nullable().not() { break }
+                if list[i - 1].is_nullable().not() {
+                    break;
+                }
 
                 collect_classes(classes, &list[i])
             }
-        },
-        Regex::Loop(e) =>
-            collect_classes(classes, e),
-        Regex::Or(list) =>
-            for e in list { collect_classes(classes, e) },
-        Regex::And(list) =>
-            for e in list { collect_classes(classes, e) },
-        Regex::Not(e) =>
-            collect_classes(classes, e),
+        }
+        Regex::Loop(e) => collect_classes(classes, e),
+        Regex::Or(list) => {
+            for e in list {
+                collect_classes(classes, e)
+            }
+        }
+        Regex::And(list) => {
+            for e in list {
+                collect_classes(classes, e)
+            }
+        }
+        Regex::Not(e) => collect_classes(classes, e),
     };
 }
 
@@ -586,13 +549,12 @@ impl ClassSet {
         Self::from_classes(&classes)
     }
 
-    pub fn classes<'a>(&'a self) -> impl Iterator<Item=&'a Class> + 'a {
-        self.set.iter()
-            .filter(|c| c.is_empty().not())
+    pub fn classes<'a>(&'a self) -> impl Iterator<Item = &'a Class> + 'a {
+        self.set.iter().filter(|c| c.is_empty().not())
     }
 
     /// Pick a char from each class in the set
-    pub fn pick_chars<'a>(&'a self) -> impl Iterator<Item=char> + 'a {
+    pub fn pick_chars<'a>(&'a self) -> impl Iterator<Item = char> + 'a {
         self.set.iter().map(|s| s.pick())
     }
 }
@@ -608,9 +570,7 @@ pub struct RegexVector {
 
 impl Derivative for RegexVector {
     fn derivative(&self, ch: char) -> Self {
-        let exprs = self.exprs.iter()
-            .map(|e| e.derivative(ch))
-            .collect();
+        let exprs = self.exprs.iter().map(|e| e.derivative(ch)).collect();
 
         RegexVector { exprs }
     }
@@ -622,8 +582,10 @@ impl Derivative for RegexVector {
 
 impl RegexVector {
     /// Find the indices of all nullable expressions of the RegexVector
-    pub fn nullables<'a>(&'a self) -> impl Iterator<Item=usize> + 'a {
-        self.exprs.iter().enumerate()
+    pub fn nullables<'a>(&'a self) -> impl Iterator<Item = usize> + 'a {
+        self.exprs
+            .iter()
+            .enumerate()
             .filter(|(_, e)| e.is_nullable())
             .map(|(i, _)| i)
     }

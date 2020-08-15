@@ -1,15 +1,16 @@
-use sana::{Spanned, Sana};
+use sana::{Sana, Spanned};
 
 type ParserItem = Result<(usize, Token, usize), crate::parser::ParserError>;
 
-pub fn token_iter<'input>(input: &'input str) -> impl Iterator<Item=ParserItem> + 'input {
+pub fn token_iter<'input>(input: &'input str) -> impl Iterator<Item = ParserItem> + 'input {
     Token::lexer(input)
         .filter(|tok| tok.value != Token::Whitespace)
         .map(|tok| match tok {
-            Spanned { value: Token::Error, .. } =>
-                Err(crate::parser::ParserError),
-            Spanned { value, start, end} =>
-                Ok((start, value, end)),
+            Spanned {
+                value: Token::Error,
+                ..
+            } => Err(crate::parser::ParserError),
+            Spanned { value, start, end } => Ok((start, value, end)),
         })
 }
 

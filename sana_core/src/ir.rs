@@ -1,11 +1,11 @@
-use std::{ops::Not, collections::VecDeque};
+use std::{collections::VecDeque, ops::Not};
 
 use crate::automata::{Automata, NodeKind, State};
 
 /// An intermediate representation
 #[derive(Debug, Clone)]
 pub struct Ir<T> {
-    pub blocks: Vec<Block<T>>
+    pub blocks: Vec<Block<T>>,
 }
 
 #[derive(Debug, Clone)]
@@ -17,17 +17,13 @@ pub enum Block<T> {
 impl<T> Block<T> {
     fn push(&mut self, op: Op<T>) {
         match self {
-            Block::Block(ops)
-            | Block::Func(ops) =>
-                ops.push(op)
+            Block::Block(ops) | Block::Func(ops) => ops.push(op),
         }
     }
 
     fn ops(&self) -> &[Op<T>] {
         match self {
-            Block::Block(ops)
-            | Block::Func(ops) =>
-                ops
+            Block::Block(ops) | Block::Func(ops) => ops,
         }
     }
 }
@@ -71,13 +67,17 @@ impl<'a, T: std::fmt::Display> std::fmt::Display for PrettyIr<'a, T> {
                 Block::Block(ops) => {
                     writeln!(f, "l{}:", i)?;
 
-                    for op in ops { fmt_op(op, f)? }
-                },
+                    for op in ops {
+                        fmt_op(op, f)?
+                    }
+                }
                 Block::Func(ops) => {
                     writeln!(f, "l{}(λ):", i)?;
 
-                    for op in ops { fmt_op(op, f)? }
-                },
+                    for op in ops {
+                        fmt_op(op, f)?
+                    }
+                }
             };
         }
 
@@ -90,20 +90,21 @@ fn fmt_op<T: std::fmt::Display>(op: &Op<T>, f: &mut std::fmt::Formatter<'_>) -> 
 
     write!(f, "    ")?;
     match op {
-        Shift =>
-            writeln!(f, "shift")?,
-        JumpMatches { from, to, on_success } =>
-            writeln!(f, "jm {:?} {:?} l{}", from, to, on_success)?,
-        JumpNotMatches { from, to, on_failure } =>
-            writeln!(f, "jnm {:?} {:?} l{}", from, to, on_failure)?,
-        LoopMatches { from, to } =>
-            writeln!(f, "lm {:?} {:?}", from, to)?,
-        Jump(to) =>
-            writeln!(f, "jump l{}", to)?,
-        Set(act) =>
-            writeln!(f, "set {}", act)?,
-        Halt =>
-            writeln!(f, "halt")?,
+        Shift => writeln!(f, "shift")?,
+        JumpMatches {
+            from,
+            to,
+            on_success,
+        } => writeln!(f, "jm {:?} {:?} l{}", from, to, on_success)?,
+        JumpNotMatches {
+            from,
+            to,
+            on_failure,
+        } => writeln!(f, "jnm {:?} {:?} l{}", from, to, on_failure)?,
+        LoopMatches { from, to } => writeln!(f, "lm {:?} {:?}", from, to)?,
+        Jump(to) => writeln!(f, "jump l{}", to)?,
+        Set(act) => writeln!(f, "set {}", act)?,
+        Halt => writeln!(f, "halt")?,
     };
 
     Ok(())
@@ -121,30 +122,26 @@ impl<T: Clone> Ir<T> {
         let terminal = automata.find_terminal_node();
         let node_kinds = automata.node_kinds();
 
-        let mut state_blocks: Vec<Option<usize>> =
-            vec![None; automata.states.len()];
-        let mut blocks = vec![
-            Block::Func::<T>(vec![])
-        ];
+        let mut state_blocks: Vec<Option<usize>> = vec![None; automata.states.len()];
+        let mut blocks = vec![Block::Func::<T>(vec![])];
         state_blocks[0] = Some(0);
 
         fn insert_block<T>(
             st: usize,
             state_blocks: &mut [Option<usize>],
             blocks: &mut Vec<Block<T>>,
-            node_kinds: &[NodeKind]
+            node_kinds: &[NodeKind],
         ) -> usize {
             if let Some(i) = state_blocks[st] {
                 i
-            }
-            else {
+            } else {
                 let i = blocks.len();
 
-                let block =
-                    if node_kinds[st] == NodeKind::Sink {
-                        Block::Func(vec![])
-                    }
-                    else { Block::Block(vec![]) };
+                let block = if node_kinds[st] == NodeKind::Sink {
+                    Block::Func(vec![])
+                } else {
+                    Block::Block(vec![])
+                };
 
                 blocks.push(block);
                 state_blocks[st] = Some(i);
@@ -157,12 +154,7 @@ impl<T: Clone> Ir<T> {
         queue.push_back(0usize);
         queue.push_back(terminal);
 
-        let terminal_block = insert_block(
-            terminal,
-            &mut state_blocks,
-            &mut blocks,
-            &node_kinds
-        );
+        let terminal_block = insert_block(terminal, &mut state_blocks, &mut blocks, &node_kinds);
 
         while let Some(st) = queue.pop_front() {
             let block_ix = state_blocks[st].unwrap();
@@ -178,7 +170,8 @@ impl<T: Clone> Ir<T> {
 
             match node_kinds[st] {
                 NodeKind::Sink | NodeKind::Fork => {
-                    let (loops, next) = automata.transitions_from(st)
+                    let (loops, next) = automata
+                        .transitions_from(st)
                         .partition::<Vec<_>, _>(|&(_, to)| to == st);
 
                     for (ch, _) in loops {
@@ -193,12 +186,8 @@ impl<T: Clone> Ir<T> {
                             queue.push_back(to)
                         }
 
-                        let to_block = insert_block(
-                            to,
-                            &mut state_blocks,
-                            &mut blocks,
-                            &node_kinds
-                        );
+                        let to_block =
+                            insert_block(to, &mut state_blocks, &mut blocks, &node_kinds);
 
                         blocks[block_ix].push(Op::JumpMatches {
                             from: ch.start,
@@ -206,9 +195,10 @@ impl<T: Clone> Ir<T> {
                             on_success: to_block,
                         });
                     }
-                },
+                }
                 NodeKind::Link => {
-                    let (loops, next) = automata.transitions_from(st)
+                    let (loops, next) = automata
+                        .transitions_from(st)
                         .partition::<Vec<_>, _>(|&(_, to)| to == st);
 
                     for (ch, _) in loops {
@@ -220,7 +210,9 @@ impl<T: Clone> Ir<T> {
 
                     let mut jumps = 0;
                     for (ch, to) in next {
-                        if to == terminal { continue }
+                        if to == terminal {
+                            continue;
+                        }
 
                         jumps += 1;
 
@@ -228,12 +220,8 @@ impl<T: Clone> Ir<T> {
                             queue.push_back(to)
                         }
 
-                        let to_block = insert_block(
-                            to,
-                            &mut state_blocks,
-                            &mut blocks,
-                            &node_kinds
-                        );
+                        let to_block =
+                            insert_block(to, &mut state_blocks, &mut blocks, &node_kinds);
 
                         blocks[block_ix].push(Op::JumpNotMatches {
                             from: ch.start,
@@ -246,10 +234,12 @@ impl<T: Clone> Ir<T> {
                     if jumps == 0 {
                         blocks[block_ix].push(Op::Halt)
                     }
-                },
+                }
                 NodeKind::Leaf => {
                     for (ch, to) in automata.transitions_from(st) {
-                        if to == terminal { continue }
+                        if to == terminal {
+                            continue;
+                        }
 
                         blocks[block_ix].push(Op::LoopMatches {
                             from: ch.start,
@@ -258,12 +248,11 @@ impl<T: Clone> Ir<T> {
                     }
 
                     blocks[block_ix].push(Op::Halt)
+                }
+                NodeKind::Terminal => match blocks[block_ix].ops().last() {
+                    Some(Op::Halt) => (),
+                    _ => blocks[block_ix].push(Op::Halt),
                 },
-                NodeKind::Terminal =>
-                    match blocks[block_ix].ops().last() {
-                        Some(Op::Halt) => (),
-                        _ => blocks[block_ix].push(Op::Halt),
-                    }
             }
         }
 
@@ -284,10 +273,13 @@ impl<T: Clone> Ir<T> {
 
         for op in &mut code {
             match op {
-                Op::JumpMatches { on_success: loc, .. }
-                | Op::JumpNotMatches { on_failure: loc, ..}
-                | Op::Jump(loc) =>
-                    *loc = symbol_map[*loc],
+                Op::JumpMatches {
+                    on_success: loc, ..
+                }
+                | Op::JumpNotMatches {
+                    on_failure: loc, ..
+                }
+                | Op::Jump(loc) => *loc = symbol_map[*loc],
                 _ => (),
             }
         }
@@ -300,16 +292,9 @@ impl<T: Clone> Ir<T> {
 /// Result returned by `Vm`
 pub enum VmResult<T> {
     /// Action with span `start..end`
-    Action {
-        start: usize,
-        end: usize,
-        action: T
-    },
+    Action { start: usize, end: usize, action: T },
     /// Error with span `start..end`
-    Error {
-        start: usize,
-        end: usize,
-    },
+    Error { start: usize, end: usize },
     /// End of input
     Eoi,
 }
@@ -328,7 +313,12 @@ impl<'input> Cursor<'input> {
         let head = iter.next();
         let pos = 0;
 
-        Cursor { input, iter, head, pos }
+        Cursor {
+            input,
+            iter,
+            head,
+            pos,
+        }
     }
 
     pub fn position(&self) -> usize {
@@ -336,9 +326,7 @@ impl<'input> Cursor<'input> {
     }
 
     pub fn shift(&mut self) {
-        self.pos += self.head
-            .map(char::len_utf8)
-            .unwrap_or(1);
+        self.pos += self.head.map(char::len_utf8).unwrap_or(1);
         self.head = self.iter.next();
     }
 
@@ -377,18 +365,24 @@ impl<'code, 'input, T: Clone> Vm<'code, 'input, T> {
         let mut end = start;
 
         if self.cursor.is_eoi() {
-            return VmResult::Eoi
+            return VmResult::Eoi;
         }
 
         loop {
             match &self.code[inst_ptr] {
                 Op::Shift => {
                     self.cursor.shift();
-                },
-                Op::JumpMatches { from, to, on_success } => {
-                    let cursor =
-                        if let Some(ch) = self.cursor.head { ch }
-                        else { break };
+                }
+                Op::JumpMatches {
+                    from,
+                    to,
+                    on_success,
+                } => {
+                    let cursor = if let Some(ch) = self.cursor.head {
+                        ch
+                    } else {
+                        break;
+                    };
 
                     if (*from..=*to).contains(&cursor) {
                         inst_ptr = *on_success;
@@ -396,12 +390,17 @@ impl<'code, 'input, T: Clone> Vm<'code, 'input, T> {
 
                         continue;
                     }
-
-                },
-                Op::JumpNotMatches { from, to, on_failure } => {
-                    let cursor =
-                        if let Some(ch) = self.cursor.head { ch }
-                        else { break };
+                }
+                Op::JumpNotMatches {
+                    from,
+                    to,
+                    on_failure,
+                } => {
+                    let cursor = if let Some(ch) = self.cursor.head {
+                        ch
+                    } else {
+                        break;
+                    };
 
                     if (*from..=*to).contains(&cursor).not() {
                         inst_ptr = *on_failure;
@@ -409,28 +408,30 @@ impl<'code, 'input, T: Clone> Vm<'code, 'input, T> {
 
                         continue;
                     }
-                },
-                Op::LoopMatches { from, to} => {
-                    let cursor =
-                        if let Some(ch) = self.cursor.head { ch }
-                        else { break };
+                }
+                Op::LoopMatches { from, to } => {
+                    let cursor = if let Some(ch) = self.cursor.head {
+                        ch
+                    } else {
+                        break;
+                    };
 
                     if (*from..=*to).contains(&cursor) {
                         inst_ptr = jump_ptr;
 
-                        continue
+                        continue;
                     }
-                },
+                }
                 Op::Jump(loc) => {
                     inst_ptr = *loc;
                     jump_ptr = *loc;
 
-                    continue
-                },
+                    continue;
+                }
                 Op::Set(act) => {
                     action = Some(act.clone());
                     end = self.cursor.position();
-                },
+                }
                 Op::Halt => break,
             };
 
@@ -441,16 +442,16 @@ impl<'code, 'input, T: Clone> Vm<'code, 'input, T> {
             return VmResult::Error {
                 start,
                 end: self.cursor.position(),
-            }
+            };
         }
 
-        if end != self.cursor.position() { self.cursor.rewind(end) }
+        if end != self.cursor.position() {
+            self.cursor.rewind(end)
+        }
 
         match action {
-            Some(action) =>
-                VmResult::Action { start, end, action },
-            None =>
-                VmResult::Eoi
+            Some(action) => VmResult::Action { start, end, action },
+            None => VmResult::Eoi,
         }
     }
 }

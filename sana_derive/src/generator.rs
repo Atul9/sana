@@ -1,18 +1,19 @@
-use syn::Ident;
 use heck::ShoutySnakeCase;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::{format_ident, quote};
+use syn::Ident;
 
-use sana_core::ir::{Op, Ir};
-use crate::{SanaSpec, Backend};
+use crate::{Backend, SanaSpec};
+use sana_core::ir::{Ir, Op};
 
 pub(crate) fn pprint_ir(spec: SanaSpec) -> ! {
     let dfa = match spec.rules.construct_dfa() {
         Ok(dfa) => dfa,
-        Err(sana_core::Error::AmbiguityError(ix, i)) =>
+        Err(sana_core::Error::AmbiguityError(ix, i)) => {
             abort!(spec.variants[i].span(), "Ambiguous rule";
-            note = spec.variants[ix].span() => "Resolve conflicts with {}", spec.variants[ix]),
+            note = spec.variants[ix].span() => "Resolve conflicts with {}", spec.variants[ix])
+        }
     };
 
     let ir = Ir::from_automata(dfa);
@@ -26,16 +27,16 @@ pub(crate) fn pprint_ir(spec: SanaSpec) -> ! {
 pub(crate) fn generate(spec: SanaSpec) -> TokenStream {
     let dfa = match spec.rules.construct_dfa() {
         Ok(dfa) => dfa,
-        Err(sana_core::Error::AmbiguityError(ix, i)) =>
+        Err(sana_core::Error::AmbiguityError(ix, i)) => {
             abort!(spec.variants[i].span(), "Ambiguous rule";
-            note = spec.variants[ix].span() => "Resolve conflicts with {}", spec.variants[ix]),
+            note = spec.variants[ix].span() => "Resolve conflicts with {}", spec.variants[ix])
+        }
     };
 
     let ir = Ir::from_automata(dfa);
 
     let enum_ident = spec.enum_ident;
-    let enum_const_name = enum_ident.to_string()
-        .to_shouty_snake_case();
+    let enum_const_name = enum_ident.to_string().to_shouty_snake_case();
     let ir_var = format_ident!("_{}_IR", enum_const_name);
     let ir_code = generate_ir(&enum_ident, &ir, &spec.variants);
 
@@ -116,14 +117,22 @@ fn generate_ir(enum_ident: &Ident, ir: &Ir<usize>, variants: &[Ident]) -> TokenS
             Op::Shift => quote! {
                 sana::ir::Op::Shift
             },
-            Op::JumpMatches { from, to, on_success } => quote! {
+            Op::JumpMatches {
+                from,
+                to,
+                on_success,
+            } => quote! {
                 sana::ir::Op::JumpMatches {
                     from: #from,
                     to: #to,
                     on_success: #on_success,
                 }
             },
-            Op::JumpNotMatches { from, to, on_failure } => quote! {
+            Op::JumpNotMatches {
+                from,
+                to,
+                on_failure,
+            } => quote! {
                 sana::ir::Op::JumpNotMatches {
                     from: #from,
                     to: #to,
@@ -143,7 +152,7 @@ fn generate_ir(enum_ident: &Ident, ir: &Ir<usize>, variants: &[Ident]) -> TokenS
                 let var = &variants[act];
 
                 quote! { sana::ir::Op::Set(#enum_ident::#var) }
-            },
+            }
             Op::Halt => quote! {
                 sana::ir::Op::Halt
             },
@@ -182,10 +191,7 @@ enum Stmt {
     /// A set of guards to jump to a guard's suitable block
     Match(Match),
     /// jump to the block if the head does not match the given range
-    JumpNotMatches {
-        range: (char, char),
-        block: BlockId,
-    },
+    JumpNotMatches { range: (char, char), block: BlockId },
     /// An unconditional jump to the block
     Jump(BlockId),
     /// Halt and return an action, if any
@@ -195,7 +201,7 @@ enum Stmt {
 /// A set of guards to jump to a guard's suitable block
 #[derive(Debug)]
 struct Match {
-    arms: Vec<MatchArm>
+    arms: Vec<MatchArm>,
 }
 
 /// Jump if matches
@@ -211,7 +217,9 @@ pub struct Bytecode {
 }
 
 fn analyze_ir(ir: &Ir<usize>) -> Bytecode {
-    let mut blocks: Vec<Block> = ir.blocks.iter()
+    let mut blocks: Vec<Block> = ir
+        .blocks
+        .iter()
         .enumerate()
         .map(|(id, block)| {
             let (is_func, ops) = match block {
@@ -235,18 +243,22 @@ fn analyze_ir(ir: &Ir<usize>) -> Bytecode {
                             code.push(Stmt::Match(match_acc))
                         }
                         code.push(Stmt::Set(*act));
-                    },
+                    }
                     Op::Shift => {
                         if let Some(match_acc) = match_acc.take() {
                             // dump match acc
                             code.push(Stmt::Match(match_acc))
                         }
                         code.push(Stmt::Shift);
-                    },
-                    Op::JumpMatches { from, to, on_success } => {
+                    }
+                    Op::JumpMatches {
+                        from,
+                        to,
+                        on_success,
+                    } => {
                         let match_arm = MatchArm {
                             ranges: vec![(*from, *to)],
-                            block: *on_success
+                            block: *on_success,
                         };
                         if let Some(match_acc) = match_acc.as_mut() {
                             match_acc.arms.push(match_arm);
@@ -255,13 +267,13 @@ fn analyze_ir(ir: &Ir<usize>) -> Bytecode {
                                 arms: vec![match_arm],
                             });
                         }
-                    },
+                    }
                     Op::LoopMatches { from, to } => {
                         is_loop = true;
 
                         let match_arm = MatchArm {
                             ranges: vec![(*from, *to)],
-                            block: id // self block id
+                            block: id, // self block id
                         };
                         if let Some(match_acc) = match_acc.as_mut() {
                             match_acc.arms.push(match_arm);
@@ -270,27 +282,34 @@ fn analyze_ir(ir: &Ir<usize>) -> Bytecode {
                                 arms: vec![match_arm],
                             });
                         }
-                    },
-                    Op::JumpNotMatches { from, to, on_failure } => {
+                    }
+                    Op::JumpNotMatches {
+                        from,
+                        to,
+                        on_failure,
+                    } => {
                         if let Some(match_acc) = match_acc.take() {
                             // dump match acc
                             code.push(Stmt::Match(match_acc))
                         }
-                        code.push(Stmt::JumpNotMatches { range: (*from, *to), block: *on_failure });
-                    },
+                        code.push(Stmt::JumpNotMatches {
+                            range: (*from, *to),
+                            block: *on_failure,
+                        });
+                    }
                     Op::Jump(id) => {
                         if let Some(match_acc) = match_acc.take() {
                             // dump match acc
                             code.push(Stmt::Match(match_acc))
                         }
                         code.push(Stmt::Jump(*id));
-                    },
+                    }
                     Op::Halt => {
                         if let Some(match_acc) = match_acc.take() {
                             code.push(Stmt::Match(match_acc))
                         }
                         code.push(Stmt::Halt);
-                    },
+                    }
                 }
             }
             // if the last statement was a match guard, then we should dump match statement
@@ -338,7 +357,7 @@ fn optimize_match(match_stmt: &mut Match) {
                         block: arm.block,
                     };
                     new_arms.push(match_arm);
-                },
+                }
             }
         }
 
@@ -376,22 +395,29 @@ macro_rules! format_lifetime {
     }}
 }
 
-fn func_to_rust(bytecode: &Bytecode, block_id: BlockId, enum_ident: &Ident, variants: &[Ident]) -> TokenStream {
+fn func_to_rust(
+    bytecode: &Bytecode,
+    block_id: BlockId,
+    enum_ident: &Ident,
+    variants: &[Ident],
+) -> TokenStream {
     let block = &bytecode.blocks[block_id];
     assert_eq!(block.id, block_id);
 
     let mut call_stack = HashSet::new();
     call_stack.insert(block.id);
 
-    let code = block.code.iter()
+    let code = block
+        .code
+        .iter()
         .map(|stmt| stmt_to_rust(&mut call_stack, bytecode, stmt, enum_ident, variants))
-        .collect::<Vec::<_>>();
+        .collect::<Vec<_>>();
 
     if block.is_loop {
         let label = format_lifetime!("'l{}", block.id);
         let break_op = match block.code.last() {
-            Some(Stmt::Halt) => quote!{ },
-            _ => quote!{ break },
+            Some(Stmt::Halt) => quote! {},
+            _ => quote! { break },
         };
 
         quote! {
@@ -401,47 +427,57 @@ fn func_to_rust(bytecode: &Bytecode, block_id: BlockId, enum_ident: &Ident, vari
                 #break_op
             }
         }
-    }
-    else {
+    } else {
         quote! {
             #(#code);*;
         }
     }
 }
 
-fn block_to_rust(call_stack: &mut HashSet<BlockId>, bytecode: &Bytecode, block_id: BlockId, enum_ident: &Ident, variants: &[Ident]) -> TokenStream {
+fn block_to_rust(
+    call_stack: &mut HashSet<BlockId>,
+    bytecode: &Bytecode,
+    block_id: BlockId,
+    enum_ident: &Ident,
+    variants: &[Ident],
+) -> TokenStream {
     let block = &bytecode.blocks[block_id];
     assert_eq!(block.id, block_id);
 
     if block.is_loop && call_stack.contains(&block.id) {
         // we are trying to jump into the beginning of a loop from the middle of a block
         let label = format_lifetime!("'l{}", block_id);
-        return quote! { continue #label }
+        return quote! { continue #label };
     }
 
     if block.is_func {
         // any call to a function inside a block results into a call
         let func = format_ident!("_l{}", block.id);
-        return quote! { return self.#func(cursor); }
+        return quote! { return self.#func(cursor); };
     }
 
     if call_stack.contains(&block.id) {
-        panic!("recursion in block {} which is not a function nor a loop. call stack: {:?}", block.id, &call_stack);
+        panic!(
+            "recursion in block {} which is not a function nor a loop. call stack: {:?}",
+            block.id, &call_stack
+        );
     }
 
     call_stack.insert(block.id);
 
-    let code = block.code.iter()
+    let code = block
+        .code
+        .iter()
         .map(|stmt| stmt_to_rust(call_stack, bytecode, stmt, enum_ident, variants))
-        .collect::<Vec::<_>>();
+        .collect::<Vec<_>>();
 
     call_stack.remove(&block.id);
 
     if block.is_loop {
         let label = format_lifetime!("'l{}", block.id);
         let break_op = match block.code.last() {
-            Some(Stmt::Halt) => quote!{ },
-            _ => quote!{ break },
+            Some(Stmt::Halt) => quote! {},
+            _ => quote! { break },
         };
 
         quote! {
@@ -451,17 +487,21 @@ fn block_to_rust(call_stack: &mut HashSet<BlockId>, bytecode: &Bytecode, block_i
                 #break_op
             }
         }
-    }
-    else {
+    } else {
         quote! {
             #(#code);*;
         }
     }
 }
 
-fn match_arm_to_rust(call_stack: &mut HashSet<BlockId>, bytecode: &Bytecode, arm: &MatchArm, enum_ident: &Ident, variants: &[Ident]) -> TokenStream {
-    let ranges = arm.ranges.iter()
-        .map(|(from, to)| quote! { #from ..= #to });
+fn match_arm_to_rust(
+    call_stack: &mut HashSet<BlockId>,
+    bytecode: &Bytecode,
+    arm: &MatchArm,
+    enum_ident: &Ident,
+    variants: &[Ident],
+) -> TokenStream {
+    let ranges = arm.ranges.iter().map(|(from, to)| quote! { #from ..= #to });
     let block = block_to_rust(call_stack, bytecode, arm.block, enum_ident, variants);
 
     quote! {
@@ -469,7 +509,13 @@ fn match_arm_to_rust(call_stack: &mut HashSet<BlockId>, bytecode: &Bytecode, arm
     }
 }
 
-fn stmt_to_rust(call_stack: &mut HashSet<BlockId>, bytecode: &Bytecode, stmt: &Stmt, enum_ident: &Ident, variants: &[Ident]) -> TokenStream {
+fn stmt_to_rust(
+    call_stack: &mut HashSet<BlockId>,
+    bytecode: &Bytecode,
+    stmt: &Stmt,
+    enum_ident: &Ident,
+    variants: &[Ident],
+) -> TokenStream {
     match stmt {
         Stmt::Set(act) => {
             let var = &variants[*act];
@@ -477,14 +523,15 @@ fn stmt_to_rust(call_stack: &mut HashSet<BlockId>, bytecode: &Bytecode, stmt: &S
                 self.action = Some(#enum_ident::#var);
                 self.end = cursor.position();
             }
-        },
+        }
         Stmt::Shift => {
             quote! { cursor.shift() }
-        },
+        }
         Stmt::Match(Match { arms }) => {
-            let arms = arms.iter()
+            let arms = arms
+                .iter()
                 .map(|arm| match_arm_to_rust(call_stack, bytecode, arm, enum_ident, variants))
-                .collect::<Vec::<_>>();
+                .collect::<Vec<_>>();
 
             quote! {
                 let ch = match cursor.head {
@@ -497,7 +544,7 @@ fn stmt_to_rust(call_stack: &mut HashSet<BlockId>, bytecode: &Bytecode, stmt: &S
                     _ => (),
                 }
             }
-        },
+        }
         Stmt::JumpNotMatches { range, block } => {
             let (from, to) = range;
             let block = block_to_rust(call_stack, bytecode, *block, enum_ident, variants);
@@ -510,11 +557,10 @@ fn stmt_to_rust(call_stack: &mut HashSet<BlockId>, bytecode: &Bytecode, stmt: &S
 
                 if !(#from..=#to).contains(&ch) { #block }
             }
-        },
+        }
         Stmt::Jump(block_id) => {
             block_to_rust(call_stack, bytecode, *block_id, enum_ident, variants)
-        },
-        Stmt::Halt =>
-            quote! { return },
+        }
+        Stmt::Halt => quote! { return },
     }
 }

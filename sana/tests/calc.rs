@@ -1,4 +1,4 @@
-use sana::{Spanned, Sana};
+use sana::{Sana, Spanned};
 
 #[test]
 fn calc_sin() {
@@ -38,16 +38,44 @@ fn calc_sin() {
     let mut lexer = Token::lexer(&input);
 
     let tok = lexer.next().unwrap();
-    assert_eq!(tok, Spanned{ value: Token::Ident, start: 0, end: 3 });
+    assert_eq!(
+        tok,
+        Spanned {
+            value: Token::Ident,
+            start: 0,
+            end: 3
+        }
+    );
 
     let tok = lexer.next().unwrap();
-    assert_eq!(tok, Spanned{ value: Token::LParren, start: 3, end: 4 });
+    assert_eq!(
+        tok,
+        Spanned {
+            value: Token::LParren,
+            start: 3,
+            end: 4
+        }
+    );
 
     let tok = lexer.next().unwrap();
-    assert_eq!(tok, Spanned{ value: Token::Float, start: 4, end: 8 });
+    assert_eq!(
+        tok,
+        Spanned {
+            value: Token::Float,
+            start: 4,
+            end: 8
+        }
+    );
 
     let tok = lexer.next().unwrap();
-    assert_eq!(tok, Spanned{ value: Token::RParren, start: 8, end: 9 });
+    assert_eq!(
+        tok,
+        Spanned {
+            value: Token::RParren,
+            start: 8,
+            end: 9
+        }
+    );
 
     assert!(lexer.next().is_none());
 }
@@ -66,7 +94,14 @@ fn dot_vm() {
     let mut lexer = Token::lexer(&input);
 
     let tok = lexer.next().unwrap();
-    assert_eq!(tok, Spanned{ value: Token::Dot, start: 0, end: 1 });
+    assert_eq!(
+        tok,
+        Spanned {
+            value: Token::Dot,
+            start: 0,
+            end: 1
+        }
+    );
 
     assert!(lexer.next().is_none());
 }
@@ -85,7 +120,14 @@ fn dot_ct() {
     let mut lexer = Token::lexer(&input);
 
     let tok = lexer.next().unwrap();
-    assert_eq!(tok, Spanned{ value: Token::Dot, start: 0, end: 1 });
+    assert_eq!(
+        tok,
+        Spanned {
+            value: Token::Dot,
+            start: 0,
+            end: 1
+        }
+    );
 
     assert!(lexer.next().is_none());
 }

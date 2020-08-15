@@ -34,8 +34,14 @@ pub enum NodeKind {
 }
 
 impl CharRange {
-    pub const MIN: Self = CharRange { start: '\0', end: '\0' };
-    pub const MAX: Self = CharRange { start: std::char::MAX, end: std::char::MAX };
+    pub const MIN: Self = CharRange {
+        start: '\0',
+        end: '\0',
+    };
+    pub const MAX: Self = CharRange {
+        start: std::char::MAX,
+        end: std::char::MAX,
+    };
 
     pub fn new(start: char, end: char) -> Self {
         assert!(start <= end);
@@ -53,10 +59,12 @@ impl CharRange {
 
         let (intersect_start, intersect_end) = (
             max(self.start as u32, other.start as u32),
-            min(self.end as u32, other.end as u32).saturating_add(1)
+            min(self.end as u32, other.end as u32).saturating_add(1),
         );
 
-        if intersect_start > intersect_end { return None }
+        if intersect_start > intersect_end {
+            return None;
+        }
 
         Some(CharRange {
             start: min(self.start, other.start),
@@ -105,10 +113,9 @@ impl<T> Automata<T> {
     }
 
     /// An iterator of all transitions from the given state
-    pub fn transitions_from(&self, state: usize) ->
-        impl Iterator<Item=(&CharRange, usize)>
-    {
-        self.edges.range(state_range(state))
+    pub fn transitions_from(&self, state: usize) -> impl Iterator<Item = (&CharRange, usize)> {
+        self.edges
+            .range(state_range(state))
             .map(|(k, &v)| (&k.1, v))
     }
 
@@ -122,12 +129,15 @@ impl<T> Automata<T> {
     /// Find the terminal node of the automata
     pub fn find_terminal_node(&self) -> usize {
         for i in 0..self.states.len() {
-            let ends: Vec<_> = self.transitions_from(i)
+            let ends: Vec<_> = self
+                .transitions_from(i)
                 .filter(|(&ch, _)| ch.start == '\0' && ch.end == std::char::MAX)
                 .map(|(_, end)| end)
                 .collect();
 
-            if ends.len() == 1 { return ends[0] }
+            if ends.len() == 1 {
+                return ends[0];
+            }
         }
 
         panic!("Automata without a terminal state")
@@ -139,29 +149,32 @@ impl<T> Automata<T> {
     /// corresponding states in the automata
     pub fn node_kinds(&self) -> Vec<NodeKind> {
         let terminal = self.find_terminal_node();
-        let coedges = self.edges.iter().map(|(&(start, range), &end)| (end, range, start));
+        let coedges = self
+            .edges
+            .iter()
+            .map(|(&(start, range), &end)| (end, range, start));
 
-        (0..self.states.len()).map(|i| {
-            if i == terminal {
-                return NodeKind::Terminal;
-            }
-
-            let far_edges = self.transitions_from(i)
-                .filter(|&(_, end)| end != terminal);
-            let far_coedges = coedges.clone()
-                .filter(|(end, _, start)| *end == i && *start != i);
-
-            if far_coedges.count() > 1 {
-                NodeKind::Sink
-            }
-            else {
-                match far_edges.count() {
-                    0 => NodeKind::Leaf,
-                    1 => NodeKind::Link,
-                    _ => NodeKind::Fork,
+        (0..self.states.len())
+            .map(|i| {
+                if i == terminal {
+                    return NodeKind::Terminal;
                 }
-            }
-        })
-        .collect()
+
+                let far_edges = self.transitions_from(i).filter(|&(_, end)| end != terminal);
+                let far_coedges = coedges
+                    .clone()
+                    .filter(|(end, _, start)| *end == i && *start != i);
+
+                if far_coedges.count() > 1 {
+                    NodeKind::Sink
+                } else {
+                    match far_edges.count() {
+                        0 => NodeKind::Leaf,
+                        1 => NodeKind::Link,
+                        _ => NodeKind::Fork,
+                    }
+                }
+            })
+            .collect()
     }
 }

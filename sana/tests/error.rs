@@ -1,4 +1,4 @@
-use sana::{Spanned, Sana};
+use sana::{Sana, Spanned};
 
 #[test]
 fn everything_is_an_error() {
@@ -11,7 +11,14 @@ fn everything_is_an_error() {
     let mut lexer = Token::lexer(&input);
 
     let tok = lexer.next().unwrap();
-    assert_eq!(tok, Spanned{ value: Token::Error, start: 0, end: 0 });
+    assert_eq!(
+        tok,
+        Spanned {
+            value: Token::Error,
+            start: 0,
+            end: 0
+        }
+    );
 }
 
 #[test]
@@ -27,12 +34,32 @@ fn error_after_match() {
     let mut lexer = Token::lexer(&input);
 
     let tok = lexer.next().unwrap();
-    assert_eq!(tok, Spanned{ value: Token::X, start: 0, end: 1 });
+    assert_eq!(
+        tok,
+        Spanned {
+            value: Token::X,
+            start: 0,
+            end: 1
+        }
+    );
 
     let tok = lexer.next().unwrap();
-    assert_eq!(tok, Spanned{ value: Token::Error, start: 1, end: 1 });
+    assert_eq!(
+        tok,
+        Spanned {
+            value: Token::Error,
+            start: 1,
+            end: 1
+        }
+    );
 
     let tok = lexer.next().unwrap(); // still an error
-    assert_eq!(tok, Spanned{ value: Token::Error, start: 1, end: 1 });
+    assert_eq!(
+        tok,
+        Spanned {
+            value: Token::Error,
+            start: 1,
+            end: 1
+        }
+    );
 }
-

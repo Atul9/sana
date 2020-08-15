@@ -1,4 +1,4 @@
-use dot::{GraphWalk, Labeller, Nodes, Edges, Id, LabelText};
+use dot::{Edges, GraphWalk, Id, LabelText, Labeller, Nodes};
 
 use crate::automata::{Automata, CharRange, State};
 use std::borrow::Cow;
@@ -11,7 +11,9 @@ impl<'a, T> GraphWalk<'a, usize, Edge> for Automata<T> {
     }
 
     fn edges(&'a self) -> Edges<'a, Edge> {
-        let vec = self.edges.iter()
+        let vec = self
+            .edges
+            .iter()
             .map(|(&k, &v)| (k.0, k.1, v))
             .collect::<Vec<_>>();
 
@@ -39,26 +41,19 @@ impl<'a, T> Labeller<'a, usize, Edge> for Automata<T> {
     fn edge_label(&'a self, e: &Edge) -> LabelText<'a> {
         let class = e.1;
 
-        let label =
-            match (class.start, class.end) {
-                ('\0', '\u{10ffff}') =>
-                    "*".to_string(),
-                (a, b) if a == b =>
-                    format!("{}", a),
-                (a, b) => {
-                    format!("{}..{}", a, b)
-                },
-            };
+        let label = match (class.start, class.end) {
+            ('\0', '\u{10ffff}') => "*".to_string(),
+            (a, b) if a == b => format!("{}", a),
+            (a, b) => format!("{}..{}", a, b),
+        };
 
         LabelText::label(label)
     }
 
     fn node_shape(&'a self, node: &usize) -> Option<LabelText<'a>> {
         match self.get(*node) {
-            Some(State::Normal) =>
-                Some(LabelText::label("circle")),
-            Some(State::Action(_)) =>
-                Some(LabelText::label("doublecircle")),
+            Some(State::Normal) => Some(LabelText::label("circle")),
+            Some(State::Action(_)) => Some(LabelText::label("doublecircle")),
             _ => None,
         }
     }

@@ -1,17 +1,17 @@
 use proc_macro::TokenStream;
-use proc_macro_error::*;
 use proc_macro2::Span;
+use proc_macro_error::*;
 use syn::{Ident, ItemEnum};
 
 use std::ops::Not;
 
 use sana_core::RuleSet;
-use sana_core::{Rule, regex::Regex};
+use sana_core::{regex::Regex, Rule};
 
-use parser::{parse_attr, TokenAttr, RegexAttr, SanaAttr};
+use parser::{parse_attr, RegexAttr, SanaAttr, TokenAttr};
 
-mod parser;
 mod generator;
+mod parser;
 
 #[derive(Debug, Clone)]
 struct Spanned<T> {
@@ -44,17 +44,15 @@ struct SanaSpec {
 
 fn parse_variant(var: syn::Variant) -> Option<SanaVariant> {
     let ident = var.ident;
-    let attrs: Vec<_> = var.attrs.into_iter()
-        .filter_map(parse_attr)
-        .collect();
+    let attrs: Vec<_> = var.attrs.into_iter().filter_map(parse_attr).collect();
 
     if attrs.is_empty() {
-        return None
+        return None;
     }
 
     if attrs.len() > 1 {
-        let (rules, errors): (Vec<_>, Vec<_>) = attrs.iter()
-            .partition(|attr| attr.data != SanaAttr::Error);
+        let (rules, errors): (Vec<_>, Vec<_>) =
+            attrs.iter().partition(|attr| attr.data != SanaAttr::Error);
 
         if rules.len() == attrs.len() {
             // mixing several rules is fine
@@ -75,7 +73,7 @@ fn parse_variant(var: syn::Variant) -> Option<SanaVariant> {
 
     if var.fields.is_empty().not() {
         emit_error!(var.fields, "Enum variants with fields are not supported");
-        return None
+        return None;
     }
 
     Some(SanaVariant { ident, attrs })
@@ -83,11 +81,9 @@ fn parse_variant(var: syn::Variant) -> Option<SanaVariant> {
 
 fn join_attrs<T>(attrs: &[Spanned<SanaAttr>], action: T) -> Rule<T> {
     let (regex, priority) = match &attrs[0].data {
-        SanaAttr::Regex(RegexAttr { regex, priority }) =>
-            (regex.clone(), *priority),
-        SanaAttr::Token(TokenAttr { token, priority }) =>
-            (token.clone(), *priority),
-        _ => unreachable!()
+        SanaAttr::Regex(RegexAttr { regex, priority }) => (regex.clone(), *priority),
+        SanaAttr::Token(TokenAttr { token, priority }) => (token.clone(), *priority),
+        _ => unreachable!(),
     };
 
     if regex.is_nullable() {
@@ -100,11 +96,9 @@ fn join_attrs<T>(attrs: &[Spanned<SanaAttr>], action: T) -> Rule<T> {
     let mut union = vec![];
     for attr in &attrs[1..] {
         let (regex, prio) = match &attr.data {
-            SanaAttr::Regex(RegexAttr { regex, priority }) =>
-                (regex.clone(), *priority),
-            SanaAttr::Token(TokenAttr { token, priority }) =>
-                (token.clone(), *priority),
-            _ => unreachable!()
+            SanaAttr::Regex(RegexAttr { regex, priority }) => (regex.clone(), *priority),
+            SanaAttr::Token(TokenAttr { token, priority }) => (token.clone(), *priority),
+            _ => unreachable!(),
         };
 
         if regex.is_nullable() {
@@ -124,11 +118,17 @@ fn join_attrs<T>(attrs: &[Spanned<SanaAttr>], action: T) -> Rule<T> {
         union.push(regex);
     }
 
-    let regex =
-        if union.is_empty() { regex }
-        else { Regex::Or(Some(regex).into_iter().chain(union).collect()) };
+    let regex = if union.is_empty() {
+        regex
+    } else {
+        Regex::Or(Some(regex).into_iter().chain(union).collect())
+    };
 
-    Rule { regex, priority, action }
+    Rule {
+        regex,
+        priority,
+        action,
+    }
 }
 
 fn build_spec(source: ItemEnum) -> SanaSpec {
@@ -150,24 +150,24 @@ fn build_spec(source: ItemEnum) -> SanaSpec {
     let mut variants = vec![];
     let mut terminal = None;
 
-    let vars = source.variants.into_iter()
-        .filter_map(parse_variant);
+    let vars = source.variants.into_iter().filter_map(parse_variant);
     for (i, var) in vars.enumerate() {
         if var.attrs.iter().any(|a| a.data == SanaAttr::Error) {
             if terminal.is_some() {
                 emit_error!(var.ident, "More than one #[error] token");
 
-                continue
-            }
-            else {
+                continue;
+            } else {
                 variants.push(var.ident.clone());
                 terminal = Some(var.ident);
 
-                continue
+                continue;
             }
         }
 
-        let attrs: Vec<_> = var.attrs.into_iter()
+        let attrs: Vec<_> = var
+            .attrs
+            .into_iter()
             .filter(|a| a.data != SanaAttr::Error)
             .collect();
 
@@ -185,7 +185,7 @@ fn build_spec(source: ItemEnum) -> SanaSpec {
         variants,
         terminal: terminal.unwrap(),
         backend,
-        pprint_ir
+        pprint_ir,
     }
 }
 
@@ -236,8 +236,7 @@ fn build_spec(source: ItemEnum) -> SanaSpec {
 #[proc_macro_error]
 #[proc_macro_derive(Sana, attributes(backend, pprint_ir, error, regex, token))]
 pub fn sana(input: TokenStream) -> TokenStream {
-    let item: ItemEnum = syn::parse(input)
-        .expect_or_abort("Sana can be only be derived for enums");
+    let item: ItemEnum = syn::parse(input).expect_or_abort("Sana can be only be derived for enums");
 
     let spec = build_spec(item);
 

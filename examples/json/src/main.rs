@@ -39,14 +39,15 @@ enum Token {
 
 fn main() {
     let mut input = String::new();
-    std::io::stdin()
-        .read_to_string(&mut input).unwrap();
+    std::io::stdin().read_to_string(&mut input).unwrap();
 
     let lexer = Token::lexer(&input);
 
     for tok in lexer {
         println!("{:?} at {}..{}", tok.value, tok.start, tok.end);
 
-        if tok.value == Token::Error { break }
+        if tok.value == Token::Error {
+            break;
+        }
     }
 }
